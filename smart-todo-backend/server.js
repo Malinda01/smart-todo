@@ -13,6 +13,9 @@ app.use(express.json()); // Allows Express to parse incoming JSON payloads
 
 // --- ROUTES ---
 const authRoutes = require('./src/routes/authRoutes');
+const taskRoutes = require('./src/routes/taskRoutes');
+
+app.use('/api/tasks', taskRoutes); // This prefixes all task routes with /api/tasks
 app.use('/api/auth', authRoutes); // This prefixes all auth routes with /api/auth
 
 // A simple sanity check route
