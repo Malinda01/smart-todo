@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const db = require('../config/db'); // Our database pool
 
 // @route   POST /api/auth/register
@@ -39,5 +40,56 @@ exports.registerUser = async (req, res) => {
     } catch (error) {
         console.error('Registration Error:', error);
         res.status(500).json({ message: 'Server error during registration' });
+    }
+};
+
+// @route   POST /api/auth/login
+// @desc    Authenticate user & get token
+exports.loginUser = async (req, res) => {
+    const { email, password } = req.body;
+
+    // 1. Basic validation
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Please provide an email and password' });
+    }
+
+    try {
+        // 2. Check if the user exists in the database
+        const [users] = await db.execute(
+            'SELECT * FROM users WHERE email = ?', 
+            [email]
+        );
+
+        if (users.length === 0) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        const user = users[0]; // Extract the user object from the array
+
+        // 3. Compare the provided password with the hashed password in DB
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // 4. Generate the JWT Token
+        const payload = { id: user.id };
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { 
+            expiresIn: '1d' // Token expires in 1 day
+        });
+
+        // 5. Send success response (matching your API design)
+        res.status(200).json({
+            token: token,
+            user: {
+                id: user.id,
+                name: user.name
+            }
+        });
+
+    } catch (error) {
+        console.error('Login Error:', error);
+        res.status(500).json({ message: 'Server error during login' });
     }
 };
