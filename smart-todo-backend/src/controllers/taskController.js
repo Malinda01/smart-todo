@@ -32,6 +32,8 @@ exports.createTask = async (req, res) => {
     }
 };
 
+// --------------------------------------------------------------------------------------------
+
 // @route   GET /api/tasks
 // @desc    Get all tasks for logged-in user
 // @access  Private (Requires Token)
@@ -58,5 +60,57 @@ exports.getTasks = async (req, res) => {
     } catch (error) {
         console.error('Get Tasks Error:', error);
         res.status(500).json({ message: 'Server error while fetching tasks' });
+    }
+};
+
+// --------------------------------------------------------------------------------------------
+
+// @route   PUT /api/tasks/:id
+// @desc    Update a task (title or is_done status)
+// @access  Private
+exports.updateTask = async (req, res) => {
+    const taskId = req.params.id; // Get the ID from the URL
+    const userId = req.user.id;   // Get the user ID from the token
+    const { title, is_done } = req.body; // Get the new data from the request
+
+    try {
+        // 1. Check if the task exists AND belongs to this specific user
+        const [tasks] = await db.execute(
+            'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
+            [taskId, userId]
+        );
+
+        if (tasks.length === 0) {
+            return res.status(404).json({ message: 'Task not found or not authorized' });
+        }
+
+        const existingTask = tasks[0];
+
+        // 2. Allow updating just the title, just the status, or both.
+        // If a field isn't provided in the request, keep the existing value.
+        const updatedTitle = title !== undefined ? title : existingTask.title;
+        
+        // Convert boolean true/false to 1/0 for MySQL if is_done is provided
+        let updatedIsDone = existingTask.is_done;
+        if (is_done !== undefined) {
+            updatedIsDone = is_done ? 1 : 0;
+        }
+
+        // 3. Update the database
+        await db.execute(
+            'UPDATE tasks SET title = ?, is_done = ? WHERE id = ?',
+            [updatedTitle, updatedIsDone, taskId]
+        );
+
+        // 4. Send back the updated task format
+        res.status(200).json({
+            id: parseInt(taskId),
+            title: updatedTitle,
+            is_done: updatedIsDone === 1
+        });
+
+    } catch (error) {
+        console.error('Update Task Error:', error);
+        res.status(500).json({ message: 'Server error while updating task' });
     }
 };
