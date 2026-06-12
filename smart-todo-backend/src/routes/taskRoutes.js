@@ -8,4 +8,6 @@ router.post('/', protect, createTask);
 router.get('/', protect, getTasks);
 router.put('/:id', protect, updateTask);
 
+router.patch('/:id/done', protect, updateTask);
+
 module.exports = router;
